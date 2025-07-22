@@ -65,7 +65,7 @@ func GetTaskByID (id string) (*models.Task, error) {
 }
 
 func CreateTask(task *models.Task) error {	
-	task.ID = primitive.NewObjectID().Hex()
+	task.ID = primitive.NewObjectID()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -74,22 +74,26 @@ func CreateTask(task *models.Task) error {
 }
 
 func DeleteTask(id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return errors.New("invalid task ID format")
-	}
-	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
-	if err != nil {
-		return err
-	}
+    objID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        log.Printf("Invalid task ID format: %s", id)
+        return errors.New("invalid task ID format")
+    }
 
-	if result.DeletedCount == 0{
-		return errors.New("task not found")
-	}
-	return nil
+    result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
+    if err != nil {
+        log.Printf("Error deleting task with ID %s: %v", id, err)
+        return err
+    }
+
+    if result.DeletedCount == 0 {
+        log.Printf("No task found with ID: %s", id)
+        return errors.New("task not found")
+    }
+    return nil
 }
 
 func UpdateTask(id string, task *models.Task) error {
@@ -101,13 +105,19 @@ func UpdateTask(id string, task *models.Task) error {
 		return errors.New("invalid task ID format")
 	}
 
-	update := bson.M{"$set": task}
+	update := bson.M{
+		"$set": bson.M{
+			"title":  task.Title,
+			"status": task.Status,
+		},
+	}
+
 	result, err := collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		return err
 	}
 
-	if result.MatchedCount == 0{
+	if result.MatchedCount == 0 {
 		return errors.New("task not found")
 	}
 	return nil
